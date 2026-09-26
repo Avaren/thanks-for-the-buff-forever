@@ -119,6 +119,19 @@ local function Init()
     ready = true
 end
 
+-- Both slash commands and the settings window use the same live settings path.
+function ns.SetOption(key, value)
+    if not ready then return end
+    if key == "enabled" or key == "group" then
+        if type(value) ~= "boolean" then return end
+    elseif key == "emote" then
+        if not allowed[value] then return end
+    else return end
+    ThanksForTheBuffForeverDB[key] = value
+    if key == "enabled" then baseline = true; SafeScan() end
+    if ns.RefreshSettings then ns.RefreshSettings() end
+end
+
 frame:SetScript("OnEvent", function(_, event, unit)
     if event == "ADDON_LOADED" and unit == addonName then Init()
     elseif event == "PLAYER_ENTERING_WORLD" then
@@ -144,16 +157,16 @@ SlashCmdList.THANKSBUFFFOREVER = function(msg)
     if not ready then return end
     local command = (msg or ""):upper():match("^%s*(.-)%s*$")
     local db = ThanksForTheBuffForeverDB
-    if command == "ON" or command == "OFF" then
-        db.enabled = command == "ON"
-        baseline = true
-        SafeScan()
+    if command == "" or command == "OPTIONS" or command == "SETTINGS" then
+        if ns.OpenSettings then ns.OpenSettings() end
+    elseif command == "ON" or command == "OFF" then
+        ns.SetOption("enabled", command == "ON")
         Message(db.enabled and "Enabled." or "Disabled.")
     elseif command == "GROUP ON" or command == "GROUP OFF" then
-        db.group = command == "GROUP ON"
+        ns.SetOption("group", command == "GROUP ON")
         Message(db.group and "Party and raid buffs included." or "Only players outside your group.")
     elseif allowed[command] then
-        db.emote = command
+        ns.SetOption("emote", command)
         Message("Emote: " .. command:lower() .. ".")
     elseif command == "STATUS" then
         Message((db.enabled and "On" or "Off") .. "; emote " .. db.emote:lower() .. "; group " .. (db.group and "on" or "off") .. ".")

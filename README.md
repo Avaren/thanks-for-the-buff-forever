@@ -16,7 +16,11 @@ Download the release ZIP. Put the `ThanksForTheBuffForever` folder inside `_clas
 
 ## Commands
 
-Use `/tftbf` or `/buffthanks` for help.
+Use `/tftbf` or `/buffthanks` to open the settings window. You can also find it under **Options > AddOns > Thanks for the Buff Forever** and click **Open settings**.
+
+The window has an **Enable automatic thanks** checkbox, a party/raid checkbox, and emote choices including **Random friendly emote**. Changes save automatically. The addon starts enabled; existing choices are kept.
+
+Use `/tftbf help` for text commands.
 
 | Command | What it does |
 | --- | --- |

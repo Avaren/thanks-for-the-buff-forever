@@ -4,11 +4,11 @@ import hashlib
 
 root = Path(__file__).resolve().parents[1]
 folder = 'ThanksForTheBuffForever'
-files = ['ThanksForTheBuffForever.toc', 'ThanksForTheBuffForever.lua', 'Buffs.lua', 'LICENSE', 'NOTICE.md']
+files = ['ThanksForTheBuffForever.toc', 'ThanksForTheBuffForever.lua', 'Settings.lua', 'Buffs.lua', 'LICENSE', 'NOTICE.md']
 for line in (root/folder/files[0]).read_text().splitlines():
     if line.strip() and not line.startswith('#'):
         assert line.strip() in files and (root/folder/line.strip()).is_file(), line
-out = root/'dist'/'ThanksForTheBuffForever-0.1.0-beta.zip'
+out = root/'dist'/'ThanksForTheBuffForever-0.2.0-beta.zip'
 out.parent.mkdir(exist_ok=True)
 with ZipFile(out, 'w', ZIP_DEFLATED) as z:
     for name in files:
@@ -17,6 +17,6 @@ with ZipFile(out, 'w', ZIP_DEFLATED) as z:
         z.write(root/name, folder+'/'+name)
 with ZipFile(out) as z:
     assert z.testzip() is None
-    assert len(z.namelist()) == 7
+    assert len(z.namelist()) == 8
 print(out)
 print('SHA256:', hashlib.sha256(out.read_bytes()).hexdigest())
