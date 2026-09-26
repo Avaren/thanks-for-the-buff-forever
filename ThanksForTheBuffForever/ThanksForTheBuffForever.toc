@@ -1,0 +1,10 @@
+## Interface: 16001
+## Title: Thanks for the Buff Forever
+## Notes: Thanks nearby players for helpful buffs, with cooldowns to keep chat quiet.
+## Author: Gogo1951; Forever port by Videocat
+## Version: 0.1.0-beta
+## SavedVariables: ThanksForTheBuffForeverDB
+## X-License: MIT
+
+Buffs.lua
+ThanksForTheBuffForever.lua

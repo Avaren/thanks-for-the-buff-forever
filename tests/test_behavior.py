@@ -1,0 +1,62 @@
+from pathlib import Path
+from lupa.lua51 import LuaRuntime
+
+root = Path(__file__).resolve().parents[1]
+lua = LuaRuntime(unpack_returned_tuples=True)
+lua.execute('''
+now=0; combat=false; auras={}; sent={}; group=false; secret={}
+SlashCmdList={}; C_Spell={GetSpellName=function(id) return "Buff"..id end}
+C_UnitAuras={GetAuraDataByIndex=function(_,i) return auras[i] end}
+function issecretvalue(v) return v == secret end
+function GetTime() return now end
+function InCombatLockdown() return combat end
+function UnitGUID(u)
+ if u=="player" then return "Player-Me" end
+ if u=="target" then return "Player-Friend" end
+ if u=="focus" then return "Player-Other" end
+ if u=="party1" and group then return "Player-Friend" end
+end
+function UnitIsPlayer(u) return u=="player" or u=="target" or u=="focus" end
+function DoEmote(e,u) table.insert(sent,{e,u}) end
+function print() end
+function CreateFrame()
+ frame={RegisterEvent=function() end,RegisterUnitEvent=function() end,
+ SetScript=function(self,_,f) self.event=f end}; return frame
+end
+function event(e,u) frame:event(e,u) end
+function buff(source,id) return {name="Buff"..(id or 1459),spellId=id or 1459,sourceUnit=source} end
+ns={}
+''')
+for file in ('Buffs.lua', 'ThanksForTheBuffForever.lua'):
+    lua.execute('assert(loadstring(...))("ThanksForTheBuffForever",ns)', (root/'ThanksForTheBuffForever'/file).read_text())
+lua.execute('''
+event("ADDON_LOADED","ThanksForTheBuffForever")
+auras={buff("target")}; event("PLAYER_ENTERING_WORLD"); assert(#sent==0)
+now=6; event("UNIT_AURA","player"); assert(#sent==0,"login buff thanked")
+auras={}; event("UNIT_AURA","player")
+auras={buff("target")}; event("UNIT_AURA","player")
+assert(#sent==1 and sent[1][1]=="THANK" and sent[1][2]=="target")
+auras={}; event("UNIT_AURA","player"); auras={buff("target")}; event("UNIT_AURA","player")
+assert(#sent==1,"same caster spam")
+auras={buff("target"),buff("focus",1243)}; event("UNIT_AURA","player")
+assert(#sent==1,"global cooldown ignored")
+now=22; auras={}; event("UNIT_AURA","player"); auras={buff("focus")}; event("UNIT_AURA","player")
+assert(#sent==2)
+now=120; group=true; auras={}; event("UNIT_AURA","player"); auras={buff("target")}; event("UNIT_AURA","player")
+assert(#sent==2,"group member thanked")
+SlashCmdList.THANKSBUFFFOREVER("group on")
+auras={}; event("UNIT_AURA","player"); auras={buff("target")}; event("UNIT_AURA","player"); assert(#sent==3)
+now=240; combat=true; event("PLAYER_REGEN_DISABLED"); auras={buff("focus")}; event("UNIT_AURA","player"); assert(#sent==3)
+combat=false; event("PLAYER_REGEN_ENABLED"); now=250; event("UNIT_AURA","player"); assert(#sent==3,"combat buff replayed")
+auras={{name=secret,spellId=secret,sourceUnit=secret}}; event("UNIT_AURA","player"); assert(#sent==3)
+auras={buff("player"),buff("target",999999)}; event("UNIT_AURA","player"); assert(#sent==3,"self or unsupported buff")
+SlashCmdList.THANKSBUFFFOREVER("off"); auras={buff("focus")}; event("UNIT_AURA","player"); assert(#sent==3)
+SlashCmdList.THANKSBUFFFOREVER("on"); event("UNIT_AURA","player"); assert(#sent==3,"enable replayed buff")
+SlashCmdList.THANKSBUFFFOREVER("bow"); now=350
+auras={}; event("UNIT_AURA","player"); auras={buff("target")}; event("UNIT_AURA","player"); assert(#sent==4 and sent[4][1]=="BOW")
+event("PLAYER_LEAVING_WORLD"); auras={buff("focus")}; now=450; event("UNIT_AURA","player"); assert(#sent==4)
+event("PLAYER_ENTERING_WORLD"); now=460; event("UNIT_AURA","player"); assert(#sent==4)
+ThanksForTheBuffForeverDB={enabled=false,group=true,emote="CHEER"}; event("ADDON_LOADED","ThanksForTheBuffForever")
+assert(not ThanksForTheBuffForeverDB.enabled and ThanksForTheBuffForeverDB.group and ThanksForTheBuffForeverDB.emote=="CHEER")
+''')
+print('PASS: Lua 5.1 load; login/zone/combat baselines; cooldowns; group/self/unknown filtering; restricted fields; commands and saved settings.')
