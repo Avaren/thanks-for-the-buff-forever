@@ -1,8 +1,8 @@
 local _, ns = ...
-local window, enabled, group, status
-local choices = {}
+local panel, category, enabled, group, status, clickBuff, extraEmotes, extraStatus
+local choices, waits = {}, {}
 local options = {
-    { "RANDOM", "Random friendly emote" },
+    { "RANDOM", "Random from selected" },
     { "THANK", "Thank" }, { "CHEER", "Cheer" },
     { "BOW", "Bow" }, { "SALUTE", "Salute" }, { "APPLAUD", "Applaud" },
 }
@@ -24,65 +24,117 @@ local function Check(parent, text, x, y, callback)
 end
 
 function ns.RefreshSettings()
-    if not window or not ThanksForTheBuffForeverDB then return end
+    if not panel or not ThanksForTheBuffForeverDB then return end
     local db = ThanksForTheBuffForeverDB
     enabled:SetChecked(db.enabled)
     group:SetChecked(db.group)
-    status:SetText(db.enabled and "Automatic thanks: |cff40ff80ON|r" or "Automatic thanks: |cffff7070OFF|r")
-    for value, button in pairs(choices) do button:SetChecked(db.emote == value) end
-end
-
-function ns.OpenSettings()
-    if not ThanksForTheBuffForeverDB then return end
-    if not window then
-        window = CreateFrame("Frame", "ThanksForTheBuffForeverSettings", UIParent, "BasicFrameTemplateWithInset")
-        window:SetSize(450, 450)
-        window:SetPoint("CENTER")
-        window:SetFrameStrata("DIALOG")
-        window:SetClampedToScreen(true)
-        window:EnableMouse(true)
-        window:SetMovable(true)
-        window:RegisterForDrag("LeftButton")
-        window:SetScript("OnDragStart", window.StartMoving)
-        window:SetScript("OnDragStop", window.StopMovingOrSizing)
-        window.TitleText:SetText("Thanks for the Buff Forever")
-        table.insert(UISpecialFrames, "ThanksForTheBuffForeverSettings")
-        enabled = Check(window, "Enable automatic thanks", 20, -45, function(value) ns.SetOption("enabled", value) end)
-        status = Text(window, "", 54, -80)
-        group = Check(window, "Also thank party and raid members", 20, -105, function(value) ns.SetOption("group", value) end)
-        Text(window, "Choose an emote", 24, -151, "GameFontNormal")
-        for index, option in ipairs(options) do
-            local value = option[1]
-            choices[value] = Check(window, option[2], 20, -172 - (index - 1) * 30,
-                function() ns.SetOption("emote", value) end)
-        end
-        Text(window, "Random picks from Thank, Cheer, Bow, Salute, and Applaud.", 24, -365, "GameFontHighlightSmall")
-        Text(window, "Waits 15 seconds between thanks; 90 seconds per player.", 24, -386, "GameFontHighlightSmall")
-        Text(window, "Changes save automatically. No thanks are sent in combat.", 24, -407, "GameFontHighlightSmall")
-        window:SetScript("OnShow", ns.RefreshSettings)
+    clickBuff:SetChecked(db.clickBuff ~= false)
+    if extraEmotes and not extraEmotes:HasFocus() then extraEmotes:SetText(db.extraEmoteText or "") end
+    for key, field in pairs(waits) do
+        UIDropDownMenu_SetSelectedValue(field, db[key])
+        local value = db[key]
+        local label = value .. (value == 1 and " second" or " seconds")
+        if value < 1 or value > 5 then label = label .. " (saved)" end
+        UIDropDownMenu_SetText(field, label)
     end
-    window:Show()
-    ns.RefreshSettings()
+    status:SetText(db.enabled and "Automatic thanks: |cff40ff80ON|r" or "Automatic thanks: |cffff7070OFF|r")
+    for value, button in pairs(choices) do
+        local checked = db.emote == value
+        if db.emote == "RANDOM" and value ~= "RANDOM" then checked = db.randomEmotes[value] end
+        button:SetChecked(checked)
+    end
 end
 
--- A discoverable entry in the game's AddOns settings opens the same window.
-local register = CreateFrame("Frame")
-register:RegisterEvent("PLAYER_LOGIN")
-register:SetScript("OnEvent", function(self)
-    self:UnregisterEvent("PLAYER_LOGIN")
-    local panel = CreateFrame("Frame")
+local function RegisterPanel()
+    if panel then return end
+    panel = CreateFrame("Frame", "ThanksForTheBuffForeverSettings")
     panel.name = "Thanks for the Buff Forever"
     Text(panel, panel.name, 16, -16, "GameFontNormalLarge")
-    Text(panel, "Turn automatic thanks on or off, and choose your emote.", 16, -48)
-    local button = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-    button:SetSize(180, 28)
-    button:SetPoint("TOPLEFT", 16, -80)
-    button:SetText("Open settings")
-    button:SetScript("OnClick", ns.OpenSettings)
+    enabled = Check(panel, "Enable automatic thanks", 16, -50, function(value) ns.SetOption("enabled", value) end)
+    status = Text(panel, "", 50, -83)
+    group = Check(panel, "Also thank party and raid members", 16, -106, function(value) ns.SetOption("group", value) end)
+    Text(panel, "Emotes - Random uses your checked choices (keep at least one)", 20, -151, "GameFontNormal")
+    for index, option in ipairs(options) do
+        local value = option[1]
+        local column, row = math.floor((index - 1) / 3), (index - 1) % 3
+        choices[value] = Check(panel, option[2], 16 + column * 260, -174 - row * 30,
+            function(checked) ns.ToggleEmote(value, checked) end)
+    end
+    Text(panel, "Extra random emotes (comma-separated)", 20, -273, "GameFontNormal")
+    extraEmotes = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
+    extraEmotes:SetSize(360, 24)
+    extraEmotes:SetPoint("TOPLEFT", 24, -296)
+    extraEmotes:SetAutoFocus(false)
+    extraEmotes:SetMaxLetters(500)
+    extraStatus = Text(panel, "Type wave, smile, dance. Slashes are added on save.", 20, -327, "GameFontHighlightSmall")
+    local function SaveExtras()
+        local ok, message = ns.SetExtraEmotes(extraEmotes:GetText())
+        extraStatus:SetText(message)
+        extraStatus:SetTextColor(ok and .5 or 1, ok and 1 or .35, ok and .5 or .35)
+        if ok then extraEmotes:ClearFocus(); extraEmotes:SetText(ThanksForTheBuffForeverDB.extraEmoteText) end
+    end
+    extraEmotes:SetScript("OnEnterPressed", SaveExtras)
+    extraEmotes:SetScript("OnEscapePressed", function(self)
+        self:ClearFocus()
+        self:SetText(ThanksForTheBuffForeverDB.extraEmoteText or "")
+        extraStatus:SetText("Edits cancelled.")
+    end)
+    local save = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+    save:SetSize(80,24)
+    save:SetPoint("TOPLEFT", 398, -296)
+    save:SetText("Save")
+    save:SetScript("OnClick", SaveExtras)
+    Text(panel, "Thanks timing (choose 1-5 seconds)", 20, -350, "GameFontNormal")
+    local function WaitField(key, label, x, y)
+        Text(panel, label, x, y - 8, "GameFontHighlightSmall")
+        local field = CreateFrame("Frame", "ThanksForTheBuffForeverTiming_" .. key, panel, "UIDropDownMenuTemplate")
+        field:SetPoint("TOPLEFT", x+155, y+2)
+        UIDropDownMenu_SetWidth(field, 130)
+        waits[key] = field
+        UIDropDownMenu_Initialize(field, function()
+            for seconds=1,5 do
+                local value = seconds
+                local info = UIDropDownMenu_CreateInfo()
+                info.text = value .. (value == 1 and " second" or " seconds")
+                info.value = value
+                info.checked = ThanksForTheBuffForeverDB[key] == value
+                info.func = function() ns.SetOption(key, value) end
+                UIDropDownMenu_AddButton(info)
+            end
+        end)
+    end
+    WaitField("thanksDelay", "Delay before thanks", 20, -371)
+    WaitField("thanksInterval", "Between any thanks", 20, -405)
+    WaitField("playerInterval", "For the same player", 20, -439)
+    Text(panel, "Buff helpers", 20, -481, "GameFontNormal")
+    clickBuff = Check(panel, "Show missing buff on target frame", 16, -505, function(value) ns.SetOption("clickBuff", value) end)
+    Text(panel, "Select a friendly player and click the rounded spell icon.", 20, -541, "GameFontHighlightSmall")
+    Text(panel, "Mouseover key: Key Bindings > Thanks for the Buff Forever.", 20, -565, "GameFontHighlightSmall")
+    Text(panel, "Buff back appears for 10 seconds when someone buffs you.", 20, -589, "GameFontHighlightSmall")
+    Text(panel, "Checkboxes save automatically. Extra emotes: Enter or Save.", 20, -625, "GameFontHighlightSmall")
+    panel:SetScript("OnShow", ns.RefreshSettings)
     if Settings and Settings.RegisterCanvasLayoutCategory and Settings.RegisterAddOnCategory then
-        local category = Settings.RegisterCanvasLayoutCategory(panel, panel.name)
+        category = Settings.RegisterCanvasLayoutCategory(panel, panel.name)
         Settings.RegisterAddOnCategory(category)
     elseif InterfaceOptions_AddCategory then
         InterfaceOptions_AddCategory(panel)
     end
+    ns.RefreshSettings()
+end
+
+function ns.OpenSettings()
+    if not ThanksForTheBuffForeverDB then return end
+    RegisterPanel()
+    if category and Settings and Settings.OpenToCategory then
+        Settings.OpenToCategory(category:GetID())
+    elseif InterfaceOptionsFrame_OpenToCategory then
+        InterfaceOptionsFrame_OpenToCategory(panel)
+    end
+end
+
+local register = CreateFrame("Frame")
+register:RegisterEvent("PLAYER_LOGIN")
+register:SetScript("OnEvent", function(self)
+    self:UnregisterEvent("PLAYER_LOGIN")
+    RegisterPanel()
 end)
