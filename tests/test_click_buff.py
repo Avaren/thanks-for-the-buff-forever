@@ -30,7 +30,7 @@ function CreateFrame(_,name,_,template)
  table.insert(frames,f); if name then _G[name]=f end; return f
 end
 UIParent=CreateFrame(); plate=CreateFrame(); plate.namePlateUnitToken="nameplate1"
-TargetFrame=CreateFrame(); container=CreateFrame(); auraFrame=CreateFrame(); auraFrame.width=21
+TargetFrame=CreateFrame(); TargetFrame.TargetFrameContainer={}; container=CreateFrame(); auraFrame=CreateFrame(); auraFrame.width=21
 TargetFrame.GetAuraContainer=function() return container end
 container.buffAuraGroup={GetFramesByIndex=function() return {auraFrame} end}
 container.debuffAuraGroup={GetFramesByIndex=function() return {} end}
@@ -43,6 +43,9 @@ function issecretvalue(v) return v==secret end
 C_UnitAuras={GetAuraDataByIndex=function(unit,index) return (auras[unit] or {})[index] end}
 GameTooltip={IsOwned=function() return false end,Hide=function() end}
 function RegisterStateDriver(f,state,driver) f[state.."Driver"]=driver end
+function UnitLevel(u) return units[u] and (units[u].level or 60) end
+C_Spell.GetSpellLevelLearned=function(id) return ({[1459]=1,[1460]=14,[19740]=4,[19742]=14})[id] end
+C_Spell.GetSpellSubtext=function(id) return id==1460 and "Rank 2" or "Rank 1" end
 function UnitGUID(u) return units[u] and units[u].guid end
 function UnitClass(u) return "Class", u=="player" and mine or (units[u] and units[u].class) end
 function UnitIsPlayer(u) return units[u] ~= nil and not units[u].npc end
@@ -57,13 +60,13 @@ lua.execute('assert(loadstring(...))("ThanksForTheBuffForever",ns)', (root/'Than
 lua.execute('''
 events=frames[#frames]; events.scripts.OnEvent()
 b=ThanksForTheBuffForeverClickBuff
-assert(b.shown and b.attrs.unit=="target" and b.attrs.spell=="Spell1460")
-assert(b.width==36 and b.point[4]==324 and b.point[5]==385,"next buff slot")
+assert(b.shown and b.attrs.unit=="target" and b.attrs.spell=="Spell1460(Rank 2)")
+assert(b.width==26 and b.point[4]==305 and b.point[5]==427,"helper above target")
 assert(b.combatDriver=="[combat] yes; no")
 m=ThanksForTheBuffForeverMouseover
 units.mouseover=nil; m.scripts.PreClick(m); assert(m.attrs.type1==nil,"binding fell back to target")
 units.mouseover=units.target; m.scripts.PreClick(m)
-assert(m.attrs.unit=="mouseover" and m.attrs.spell=="Spell1460" and m.attrs.type1=="spell")
+assert(m.attrs.unit=="mouseover" and m.attrs.spell=="Spell1460(Rank 2)" and m.attrs.type1=="spell")
 auras.mouseover={{name="Spell1460",spellId=1460}}; m.scripts.PreClick(m); assert(m.attrs.type1==nil)
 auras.mouseover={}; units.mouseover={guid="enemy",class="PRIEST",enemy=true}
 m.scripts.PreClick(m); assert(m.attrs.type1==nil)
@@ -97,17 +100,14 @@ assert(ns.GetClickBuffStatus():find("Offering"))
 auras.target={{name="Spell1460",spellId=1460}}; ns.RefreshClickBuff()
 assert(not b.shown and ns.GetClickBuffStatus():find("already has"))
 auras.target={}; ns.RefreshClickBuff()
-units.target.class="WARRIOR"; mine="PALADIN"; events.scripts.OnEvent(); assert(b.attrs.spell=="Spell19740")
-units.target.class="PRIEST"; events.scripts.OnEvent(); assert(b.attrs.spell=="Spell19742")
--- Row wrapping, collision avoidance, empty row, top placement and frame visibility.
-auraFrame.left=396; ns.RefreshClickBuff(); assert(b.point[4]==300 and b.point[5]==361)
-debuff=CreateFrame(); debuff.left=300; debuff.bottom=376; debuff.width=21
-container.debuffAuraGroup.GetFramesByIndex=function() return {debuff} end
-ns.RefreshClickBuff(); assert(b.point[4]==261,"covered a real debuff")
-container.debuffAuraGroup.GetFramesByIndex=function() return {} end
-container.buffAuraGroup.GetFramesByIndex=function() return {} end
-ns.RefreshClickBuff(); assert(b.point[4]==300 and b.point[5]==385)
-TargetFrame.buffsOnTop=true; ns.RefreshClickBuff(); assert(b.point[5]==400)
+units.target.class="WARRIOR"; mine="PALADIN"; events.scripts.OnEvent(); assert(b.attrs.spell=="Spell19740(Rank 1)")
+units.target.class="PRIEST"; events.scripts.OnEvent(); assert(b.attrs.spell=="Spell19742(Rank 1)")
+-- Aura position and growth must not move the helper or be modified by it.
+auraFrame.left=396; ns.RefreshClickBuff()
+assert(b.point[4]==305 and b.point[5]==427)
+TargetFrame.buffsOnTop=true; ns.RefreshClickBuff()
+assert(b.point[4]==305 and b.point[5]==427)
+assert(auraFrame.left==396 and TargetFrame.buffsOnTop==true)
 TargetFrame.shown=false; ns.RefreshClickBuff(); assert(not b.shown)
 TargetFrame.shown=true; ns.RefreshClickBuff(); assert(b.shown)
 ThanksForTheBuffForeverDB.clickBuff=false; ns.RefreshClickBuff(); assert(not b.shown)
@@ -117,4 +117,4 @@ combat=false; units.target=nil; units.mouseover=units.nameplate1
 ns.RefreshClickBuff(); assert(not b.shown,"mouseover still activates helper")
 units.target=units.nameplate1; mine="ROGUE"; events.scripts.OnEvent(); assert(not b.shown)
 ''')
-print('PASS: target-only selection, missing buffs, rank matching, target-switch protection, aura-row placement/wrapping/collision, hidden target frame, class presets, settings and no insecure combat writes. Live rendering and casting remain unverified.')
+print('PASS: target-only selection, missing buffs, rank matching, target-switch protection, independent above-frame placement, hidden target frame, class presets, settings and no insecure combat writes. Live rendering and casting remain unverified.')

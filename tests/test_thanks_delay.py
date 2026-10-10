@@ -23,7 +23,7 @@ event("PLAYER_LEAVING_WORLD"); timers[#timers](); assert(#sent==count+1)
 event("PLAYER_ENTERING_WORLD"); now=9020; queue()
 group=false -- No alternate party token for the unavailable-caster case.
 local oldGUID=UnitGUID; UnitGUID=function(u) if u=="target" then return "Changed" end return oldGUID(u) end
-timers[#timers](); assert(#sent==count+1,"thanked changed target"); UnitGUID=oldGUID
+timers[#timers](); assert(#sent==count+1,"directed thanks sent after caster disappeared"); UnitGUID=oldGUID
 -- A passing caster's unit token can change while the configured delay runs.
 queue()
 UnitGUID=function(u)

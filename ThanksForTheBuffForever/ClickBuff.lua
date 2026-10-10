@@ -46,6 +46,7 @@ local function Rebuild()
     spells = {}
     local _, class = UnitClass("player")
     for family, ranks in ipairs(families[class] or {}) do
+        spells[family] = {}
         for i = #ranks, 1, -1 do
             if Known(ranks[i]) then
                 local name, icon
@@ -56,9 +57,17 @@ local function Rebuild()
                 if Public(name) and type(name) == "string" then
                     local matchingIDs = {}
                     for _, id in ipairs(ranks) do matchingIDs[id] = true end
-                    spells[family] = {id=ranks[i], name=name, icon=icon, matchingIDs=matchingIDs}
+                    local rank = C_Spell and C_Spell.GetSpellSubtext and C_Spell.GetSpellSubtext(ranks[i])
+                    if not rank and GetSpellSubtext then rank = GetSpellSubtext(ranks[i]) end
+                    local level = C_Spell and C_Spell.GetSpellLevelLearned and C_Spell.GetSpellLevelLearned(ranks[i])
+                    if not level and GetSpellLevelLearned then level = GetSpellLevelLearned(ranks[i]) end
+                    -- Never cast by bare name: that may resolve to the highest rank again.
+                    local castName = Public(rank) and type(rank) == "string" and rank ~= "" and (name .. "(" .. rank .. ")") or nil
+                    if castName and Public(level) and type(level) == "number" then
+                        spells[family][#spells[family]+1] = {id=ranks[i], name=name, castName=castName,
+                            icon=icon, matchingIDs=matchingIDs, minLevel=math.max(1,level-10)}
+                    end
                 end
-                break
             end
         end
     end
@@ -70,12 +79,19 @@ local function Eligible(unit)
         and not UnitIsDeadOrGhost(unit) and guid
 end
 local function Pick(unit)
+    local level = UnitLevel(unit)
+    if not Public(level) or type(level) ~= "number" or level < 1 then return end
+    local function ForFamily(index)
+        for _, spell in ipairs(spells[index] or {}) do
+            if level >= spell.minLevel then return spell end
+        end
+    end
     local _, mine = UnitClass("player")
     if mine == "PALADIN" then
         local _, class = UnitClass(unit)
-        if Public(class) and casters[class] then return spells[2] or spells[1] end
+        if Public(class) and casters[class] then return ForFamily(2) or ForFamily(1) end
     end
-    return spells[1] or spells[2]
+    return ForFamily(1) or ForFamily(2)
 end
 -- nil means unreadable, false means absent, true means already present.
 -- Match every supported rank, regardless of who supplied the buff.
@@ -106,7 +122,7 @@ local function Clear()
     button:Hide()
     if GameTooltip:IsOwned(button) then GameTooltip:Hide() end
 end
--- Read the displayed aura geometry without parenting a secure control to an aura.
+-- Read frame geometry; only the addon-owned button is moved.
 local function Rect(frame)
     if not frame or (frame.IsForbidden and frame:IsForbidden()) or not frame:IsShown() then return end
     local l, b, w, h = frame:GetRect()
@@ -118,47 +134,12 @@ end
 local function Place()
     local target = TargetFrame
     if not target or not target:IsShown() then return false end
-    local container = target.GetAuraContainer and target:GetAuraContainer()
-    local buffs, all, unreadable = {}, {}, false
-    local function Add(frame, buff)
-        local r = Rect(frame)
-        if r then all[#all+1] = r; if buff then buffs[#buffs+1] = r end
-        elseif frame then unreadable = true end
-    end
-    if container and container.buffAuraGroup then
-        for _, frame in ipairs(container.buffAuraGroup:GetFramesByIndex()) do Add(frame,true) end
-        if container.debuffAuraGroup then
-            for _, frame in ipairs(container.debuffAuraGroup:GetFramesByIndex()) do Add(frame,false) end
-        end
-    else
-        for i=1,40 do Add(_G["TargetFrameBuff"..i],true); Add(_G["TargetFrameDebuff"..i],false) end
-    end
-    local base = Rect(container) or Rect(target)
+    local art = target.TargetFrameContainer and target.TargetFrameContainer.FrameTexture
+    local base = Rect(art) or Rect(target)
     if not base then return false end
     local scale = target:GetEffectiveScale() / UIParent:GetEffectiveScale()
-    local size, gap = 36*scale, 3*scale
-    local left, top = base.l, base.b+base.h
-    if not container then left, top = base.l+5*scale, base.b+32*scale end
-    local up = target.buffsOnTop == true
-    local x, y = left, up and base.b or top-size
-    local last = buffs[#buffs]
-    if last then
-        x, y = last.l+last.w+gap, last.b+last.h-size
-        local width = container and container.GetFlowLayoutMaximumLineSize and container:GetFlowLayoutMaximumLineSize() or 122
-        if not Public(width) or type(width) ~= "number" then width=122 end
-        if x+size > left+width*scale then
-            x = left
-            y = up and (last.b+last.h+gap) or (last.b-size-gap)
-        end
-    end
-    -- Never cover a real buff/debuff when the next row is occupied.
-    for _, r in ipairs(all) do
-        if x < r.l+r.w and x+size > r.l and y < r.b+r.h and y+size > r.b then
-            x = left-size-gap
-            break
-        end
-    end
-    if unreadable then x = left-size-gap end
+    local size = 26*scale
+    local x, y = base.l+5*scale, base.b+base.h+6*scale
     button:ClearAllPoints()
     button:SetSize(size,size)
     button:SetPoint("BOTTOMLEFT",UIParent,"BOTTOMLEFT",x,y)
@@ -170,7 +151,7 @@ local function Refresh()
     local guid = Eligible("target")
     if not guid then helperStatus = "Select a living friendly player."; Clear(); return end
     local spell = guid and Pick("target")
-    if not spell then helperStatus = "No supported learned buff found."; Clear(); return end
+    if not spell then helperStatus = "No learned buff rank available for this target level."; Clear(); return end
     local hasBuff = HasBuff("target",spell)
     if hasBuff ~= false then
         helperStatus = hasBuff and ("Target already has " .. spell.name .. ".") or "Target buffs are unreadable."
@@ -179,7 +160,7 @@ local function Refresh()
     if not Place() then helperStatus = "Target-frame position unavailable."; Clear(); return end
     selected = {unit="target",guid=guid,spell=spell}
     button:SetAttribute("unit","target")
-    button:SetAttribute("spell",spell.name)
+    button:SetAttribute("spell",spell.castName)
     button:SetAttribute("type1","spell")
     button.icon:SetTexture(spell.icon)
     button:Show()
@@ -219,7 +200,7 @@ local function Create()
             if candidate and HasBuff("mouseover", candidate) == false then return candidate end
         end)
         if ok and spell then
-            self:SetAttribute("spell", spell.name)
+            self:SetAttribute("spell", spell.castName)
             self:SetAttribute("type1", "spell")
         end
     end)
@@ -239,7 +220,7 @@ local function Create()
     button:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self,"ANCHOR_BOTTOM")
         GameTooltip:SetText("Click to buff",1,.82,0)
-        if selected then GameTooltip:AddLine(selected.spell.name .. " → " .. (UnitName(selected.unit) or "player"),1,1,1) end
+        if selected then GameTooltip:AddLine(selected.spell.castName .. " → " .. (UnitName(selected.unit) or "player"),1,1,1) end
         GameTooltip:AddLine("One click, one cast. Out of combat only.",.65,.75,.8)
         GameTooltip:Show()
     end)
@@ -248,7 +229,7 @@ local function Create()
         if InCombatLockdown() then return end
         local ok, valid = pcall(function()
             return selected and ThanksForTheBuffForeverDB.clickBuff and Eligible(selected.unit) == selected.guid
-                and HasBuff(selected.unit, selected.spell) == false
+                and Pick(selected.unit) == selected.spell and HasBuff(selected.unit, selected.spell) == false
         end)
         if not ok or not valid then self:SetAttribute("type1",nil) end
     end)
@@ -276,7 +257,7 @@ ns.GetClickBuffStatus = function() return helperStatus end
 ns.GetMissingBuff = function(unit)
     if not Eligible(unit) then return nil, "Caster is not an available living friendly player." end
     local spell = Pick(unit)
-    if not spell then return nil, "Your class has no supported learned buff." end
+    if not spell then return nil, "No learned buff rank available for this player level." end
     local present = HasBuff(unit,spell)
     if present == false then return spell end
     return nil, present and ("Caster already has " .. spell.name .. ".") or "Caster buffs are unreadable."

@@ -1,6 +1,38 @@
+# 0.4.3-beta
+
+- Fix missed thanks when a buff giver has no target or nameplate unit: use their name from the buff caster GUID.
+- Keep directed thanks working when the giver's unit token disappears during the delay.
+- Preserve self-buff, group, cooldown and system-effect filters.
+- All 13 offline test scripts passed, including a reproduction of the missed Arcane Intellect case. In-game emote delivery still needs verification.
+
+# 0.4.2-beta
+
+- Tries the buff caster GUID and unit-token lookup when the normal caster is missing.
+- Checks the resolved player's identity before applying emote rules or offering Buff Back.
+- Directed thanks stays quiet if the giver cannot be identified; undirected thanks respects the selected emote.
+- Explicitly ignores Campfire Nearby as well as Honorless Target.
+- Offline checks passed; live caster recovery still needs testing.
+
+# 0.4.1-beta
+
+- Honorless Target no longer triggers thanks or Buff Back.
+- General thanks now requires a recognised shareable buff when the giver is unknown, avoiding false thanks for unidentified food, drink, mounts and system effects.
+- New Forever buffs still work when their giver can be identified as another player.
+- Offline regression checks passed; in-game verification is still pending.
+
+# 0.4.0-beta
+
+- Thanks for any helpful buff, with a general thank-you when the giver is unknown.
+- More emotes and optional rules by class, gender and race.
+- Click-to-buff and Buff Back buttons with rank selection and targeting options.
+- Adjustable delays, cooldowns and party/raid inclusion.
+- Saved diagnostic logging.
+
+Beta: offline checks pass; fallback delivery and rank cutoffs still need live verification.
+
 # 0.3.0-beta
 
-- Added configurable overall and per-player thanks cooldowns (0–3600 seconds), applied immediately and saved between sessions.
+- Added configurable overall and per-player thanks cooldowns (0ï¿½3600 seconds), applied immediately and saved between sessions.
 
 - Added a comma-separated extra-emote field for Random mode, with client emote/alias validation, deduplication, and saved choices.
 

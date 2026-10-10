@@ -4,11 +4,11 @@ import hashlib
 
 root = Path(__file__).resolve().parents[1]
 folder = 'ThanksForTheBuffForever'
-files = ['ThanksForTheBuffForever.toc', 'ThanksForTheBuffForever.lua', 'Settings.lua', 'ClickBuff.lua', 'BuffBack.lua', 'Bindings.xml', 'Buffs.lua', 'Media/RoundedIconMask.tga', 'LICENSE', 'NOTICE.md']
+files = ['ThanksForTheBuffForever.toc', 'ThanksForTheBuffForever.lua', 'Settings.lua', 'Rules.lua', 'ClickBuff.lua', 'BuffBack.lua', 'Bindings.xml', 'Buffs.lua', 'Media/RoundedIconMask.tga', 'LICENSE', 'NOTICE.md']
 for line in (root/folder/files[0]).read_text().splitlines():
     if line.strip() and not line.startswith('#'):
         assert line.strip() in files and (root/folder/line.strip()).is_file(), line
-out = root/'dist'/'ThanksForTheBuffForever-0.3.0-beta.zip'
+out = root/'dist'/'ThanksForTheBuffForever-0.4.3-beta.zip'
 out.parent.mkdir(exist_ok=True)
 with ZipFile(out, 'w', ZIP_DEFLATED) as z:
     for name in files:

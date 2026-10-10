@@ -52,7 +52,7 @@ auras={}; event("UNIT_AURA","player"); auras={buff("target")}; event("UNIT_AURA"
 now=240; combat=true; event("PLAYER_REGEN_DISABLED"); auras={buff("focus")}; event("UNIT_AURA","player"); assert(#sent==3)
 combat=false; event("PLAYER_REGEN_ENABLED"); now=250; event("UNIT_AURA","player"); assert(#sent==3,"combat buff replayed")
 auras={{name=secret,spellId=secret,sourceUnit=secret}}; event("UNIT_AURA","player"); assert(#sent==3)
-auras={buff("player"),buff("target",999999)}; event("UNIT_AURA","player"); assert(#sent==3,"self or unsupported buff")
+auras={buff("player"),buff("player",999999)}; event("UNIT_AURA","player"); assert(#sent==3,"self buff")
 SlashCmdList.THANKSBUFFFOREVER("off"); auras={buff("focus")}; event("UNIT_AURA","player"); assert(#sent==3)
 SlashCmdList.THANKSBUFFFOREVER("on"); event("UNIT_AURA","player"); assert(#sent==3,"enable replayed buff")
 SlashCmdList.THANKSBUFFFOREVER("bow"); now=350
@@ -62,7 +62,7 @@ event("PLAYER_ENTERING_WORLD"); now=460; event("UNIT_AURA","player"); assert(#se
 ThanksForTheBuffForeverDB={enabled=false,group=true,emote="CHEER"}; event("ADDON_LOADED","ThanksForTheBuffForever"); ns.SetOption("thanksDelay",0)
 assert(not ThanksForTheBuffForeverDB.enabled and ThanksForTheBuffForeverDB.group and ThanksForTheBuffForeverDB.emote=="CHEER")
 ''')
-print('PASS: Lua 5.1 load; login/zone/combat baselines; cooldowns; group/self/unknown filtering; restricted fields; commands and saved settings.')
+print('PASS: Lua 5.1 load; login/zone/combat baselines; cooldowns; group/self filtering; restricted fields; commands and saved settings.')
 
 lua.execute('''
 ThanksForTheBuffForeverDB={enabled=true,group=true,emote="RANDOM",randomEmotes={BOW=true,SALUTE=true}}

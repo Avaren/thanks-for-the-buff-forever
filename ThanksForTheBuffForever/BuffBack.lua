@@ -28,9 +28,10 @@ local function Prepare()
     local spell = unit and ns.GetMissingBuff(unit)
     if not spell then return end
     button:SetAttribute("unit",unit)
-    button:SetAttribute("spell",spell.name)
+    button:SetAttribute("spell",spell.castName)
     -- One hardware click selects the GUID-checked caster and buffs that unit.
-    button:SetAttribute("macrotext1", "/target [@" .. unit .. ",help,nodead]\n/cast [@" .. unit .. ",help,nodead] " .. spell.name)
+    local selectTarget = ThanksForTheBuffForeverDB.targetBuffBack ~= false and ("/target [@" .. unit .. ",help,nodead]\n") or ""
+    button:SetAttribute("macrotext1", selectTarget .. "/cast [@" .. unit .. ",help,nodead] " .. spell.castName)
     button:SetAttribute("type1","macro")
     return unit,spell
 end
@@ -79,9 +80,9 @@ events:SetScript("OnEvent",function(_,event)
         local spell = unit and ns.GetMissingBuff(unit)
         if not spell then return end
         GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
-        GameTooltip:SetText(spell.name,1,1,1)
+        GameTooltip:SetText(spell.castName,1,1,1)
         GameTooltip:AddLine("Buff back: " .. (UnitName(unit) or "player"),1,.82,0)
-        GameTooltip:AddLine("Click to target and buff. " .. math.ceil(pending.expires-GetTime()) .. " seconds left.",.65,.75,.8)
+        GameTooltip:AddLine((ThanksForTheBuffForeverDB.targetBuffBack ~= false and "Click to target and buff. " or "Click to buff. ") .. math.ceil(pending.expires-GetTime()) .. " seconds left.",.65,.75,.8)
         GameTooltip:Show()
     end)
     button:SetScript("OnLeave",function() GameTooltip:Hide() end)

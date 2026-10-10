@@ -39,7 +39,7 @@ assert(ThanksForTheBuffForeverSettings.shown)
 assert(#UISpecialFrames==0 and openedCategory==123,"slash did not open native category")
 local checks={}
 for _,w in ipairs(widgets) do if w.kind=="CheckButton" then table.insert(checks,w) end end
-assert(#checks==9)
+assert(#checks==15)
 assert(checks[1].checked==false and checks[2].checked==true,"saved preferences not reflected")
 checks[1]:SetChecked(true); checks[1].scripts.OnClick(checks[1]); assert(ThanksForTheBuffForeverDB.enabled)
 checks[3]:SetChecked(true); checks[3].scripts.OnClick(checks[3]); assert(ThanksForTheBuffForeverDB.emote=="RANDOM")
@@ -53,10 +53,14 @@ assert(not checks[5].checked,"random pool was not saved")
 SlashCmdList.THANKSBUFFFOREVER("off"); assert(not checks[1].checked)
 SlashCmdList.THANKSBUFFFOREVER("bow"); assert(checks[6].checked and not checks[3].checked)
 SlashCmdList.THANKSBUFFFOREVER("group off"); assert(not checks[2].checked)
+for i,token in ipairs({"WAVE","NOD","KISS","DANCE"}) do
+ SlashCmdList.THANKSBUFFFOREVER(token)
+ assert(ThanksForTheBuffForeverDB.emote==token and checks[8+i].checked,"new choice unavailable")
+end
 local count=#widgets
 SlashCmdList.THANKSBUFFFOREVER(""); assert(#widgets==count and #UISpecialFrames==0,"duplicate settings window")
 for _,w in ipairs(widgets) do assert(w.template~="BasicFrameTemplateWithInset","standalone window created") end
-checks[9]:SetChecked(false); checks[9].scripts.OnClick(checks[9]); assert(ThanksForTheBuffForeverDB.clickBuff==false)
+checks[13]:SetChecked(false); checks[13].scripts.OnClick(checks[13]); assert(ThanksForTheBuffForeverDB.clickBuff==false)
 for _,key in ipairs({"thanksDelay","thanksInterval","playerInterval"}) do
  local field=_G["ThanksForTheBuffForeverTiming_"..key]
  assert(field and field.template=="UIDropDownMenuTemplate")
