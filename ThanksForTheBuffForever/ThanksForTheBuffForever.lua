@@ -272,10 +272,13 @@ local function Scan()
         if eligible and not PlainString(unit) then
             detectionStatus = name .. ": the client did not provide an identifiable caster."
             Log("UNIDENTIFIED",detectionStatus)
-            if newAura and not baseline and now >= quietUntil and KnownGift(name, spellId) then
+            if newAura and not baseline and now >= quietUntil then
                 local own = UnitGUID("player")
                 if not PlainString(casterGUID) then
-                    QueueThanks(nil,"unknown-caster",now)
+                    -- Only unidentified effects need the known-gift allowlist.
+                    -- A verified player GUID works for every helpful aura,
+                    -- including heals such as Renew without a visible unit.
+                    if KnownGift(name, spellId) then QueueThanks(nil,"unknown-caster",now) end
                 elseif Public(own) and casterGUID ~= own and casterGUID:match("^Player%-") then
                     detectionStatus = "Detected " .. name .. "; resolving giver by GUID."
                     QueueThanks(nil,casterGUID,now)

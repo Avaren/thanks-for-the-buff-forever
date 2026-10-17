@@ -1,3 +1,10 @@
+# 0.4.4-beta
+
+- Fix missed thanks for Renew and other helpful effects when the giver is identified by player GUID without a visible unit.
+- Fix the Buff mouseover keybinding category.
+- Preserve self, NPC, unknown-effect, group and duplicate filtering.
+- All 13 offline test scripts passed. User reports improved in-game thanking; protected casting and rank selection remain separately unverified.
+
 # 0.4.3-beta
 
 - Fix missed thanks when a buff giver has no target or nameplate unit: use their name from the buff caster GUID.

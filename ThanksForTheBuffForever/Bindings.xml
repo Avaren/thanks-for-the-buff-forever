@@ -1,3 +1,3 @@
 <Bindings>
-    <Binding name="CLICK ThanksForTheBuffForeverMouseover:LeftButton" header="THANKSBUFFFOREVER" />
+    <Binding name="CLICK ThanksForTheBuffForeverMouseover:LeftButton" category="BINDING_HEADER_THANKSBUFFFOREVER" />
 </Bindings>
